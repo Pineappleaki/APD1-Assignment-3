@@ -185,3 +185,144 @@ def makePlot(df):
                 k += 1
     fig.tight_layout()
 makePlot(snap)
+
+
+# Clustering
+
+def kMeansCluster(df, chosen_features, expected_clusters):
+    
+    label_a, label_b = chosen_features
+    label_no = []
+
+    
+    kmeans = cluster.KMeans(n_clusters = expected_clusters)
+
+    df_cluster = df[chosen_features].copy()
+    kmeans.fit(df_cluster)
+
+
+    # extract labels and cluster centres
+    labels = kmeans.labels_
+    center = kmeans.cluster_centers_
+
+    # plot using the labels to select colour
+    plt.figure(figsize=(5.0,5.0))
+
+    colour = sns.color_palette("hls", expected_clusters)
+    for l in range(expected_clusters):     # loop over the different labels
+        plt.plot(df_cluster[label_a][labels==l], df_cluster[label_b][labels==l], "o", markersize=3, color=colour[l])
+        label_no.append(l)
+        
+        plt.legend(label_no, loc='center left', bbox_to_anchor=(1, 0.5))
+    # show cluster centres
+    for ic in range(expected_clusters):
+        xc, yc = center[ic,:]
+        plt.plot(xc, yc, "dk", markersize=10)
+        
+        
+    if label_a == 'R_output':
+        label_a = 'Renewable Energy Output'
+    elif label_b == 'R_output':
+        label_b = 'Renewable Energy Output'
+
+    plt.xlabel(label_a)
+    plt.ylabel(label_b)
+    plt.title(f'k-Means Cluster (of {expected_clusters})')
+    plt.show()
+    
+    df["labels"] = labels
+    df = df.sort_values(["labels"], ignore_index=False)
+
+    return df
+
+exp_clusters = 4
+features = ['GDP','R_output' ]
+
+kmeansdf = kMeansCluster(snap, features, exp_clusters)
+kmeansdf
+
+def ACCluster(df, chosen_features, expected_clusters):
+    
+    label_no = []
+    # Agglomerative clustering
+    ac = cluster.AgglomerativeClustering(n_clusters=expected_clusters)
+
+    label_a, label_b = chosen_features
+
+    # carry out the fitting
+    df_cluster = df[chosen_features].copy()
+    ac.fit(df_cluster)
+
+    labels = ac.labels_
+
+    # The clusterer does not return cluster centres, but they are easily computed
+    xcen = []
+    ycen = []
+    for ic in range(expected_clusters):
+        xc = np.average(df_cluster[label_a][labels==ic])
+        yc = np.average(df_cluster[label_b][labels==ic])
+        xcen.append(xc)
+        ycen.append(yc)
+
+    # plot using the labels to select colour
+    plt.figure(figsize=(5.0,5.0), dpi = 200)
+
+    colour = sns.color_palette("hls", expected_clusters)
+    for l in range(expected_clusters):     # loop over the different labels
+        plt.plot(df_cluster[label_a][labels==l], df_cluster[label_b][labels==l], "o", markersize=3, color=colour[l])
+        label_no.append(l)
+        
+        plt.legend(label_no, loc='center left', bbox_to_anchor=(1, 0.5))
+
+    # show cluster centres
+    for ic in range(expected_clusters):
+        plt.plot(xcen[ic], ycen[ic], "dk", markersize=10)
+
+    if label_a == 'R_output':
+        label_a = 'Renewable Energy Output'
+    elif label_b == 'R_output':
+        label_b = 'Renewable Energy Output'
+
+    plt.xlabel(label_a)
+    plt.ylabel(label_b)
+    plt.title(f'Agglomerative Cluster (of {expected_clusters})')
+    plt.grid()
+    plt.show()
+
+    df["labels"] = labels
+    df = df.sort_values(["labels"], ignore_index=False)
+    
+
+    return df
+
+ac_df = ACCluster(snap, features, exp_clusters)
+
+# Using boolean indexing:
+
+df = ac_df
+
+label0 = df[df['labels'] == 0]
+label1 = df[df['labels'] == 1]
+label2 = df[df['labels'] == 2]
+label3 = df[df['labels'] == 3]
+
+label0.sort_values('GDP', ascending=False)
+
+
+label_sorted = [label0, label1, label2, label3]
+
+
+#choosing countries at random
+import random as rd
+rd.seed(1234)
+cc = []
+
+for df in label_sorted:
+    df.reset_index()
+    count = (df.count()[0]+1)
+    index_value = rd.randint(0, count)
+    print(index_value)
+    df = df.iloc[index_value]
+    cc.append(df.name)
+    
+cc
