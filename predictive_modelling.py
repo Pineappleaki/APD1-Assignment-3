@@ -247,7 +247,9 @@ def kMeansCluster(df, chosen_features, expected_clusters):
 
     colour = sns.color_palette("hls", expected_clusters)
     for l in range(expected_clusters):     # loop over the different labels
-        plt.plot(df_cluster[label_a][labels==l], df_cluster[label_b][labels==l], "o", markersize=3, color=colour[l])
+        plt.plot(df_cluster[label_a][labels==l], 
+                 df_cluster[label_b][labels==l], "o", markersize=3, 
+                 color=colour[l])
         label_no.append(l)
         
         plt.legend(label_no, loc='center left', bbox_to_anchor=(1, 0.5))
@@ -307,7 +309,7 @@ def ACCluster(df, chosen_features, expected_clusters):
 
     labels = ac.labels_
 
-    # The clusterer does not return cluster centres, but they are easily computed
+    # Calculate centers
     xcen = []
     ycen = []
     for ic in range(expected_clusters):
@@ -321,7 +323,9 @@ def ACCluster(df, chosen_features, expected_clusters):
 
     colour = sns.color_palette("hls", expected_clusters)
     for l in range(expected_clusters):     # loop over the different labels
-        plt.plot(df_cluster[label_a][labels==l], df_cluster[label_b][labels==l], "o", markersize=3, color=colour[l])
+        plt.plot(df_cluster[label_a][labels==l], 
+                 df_cluster[label_b][labels==l], "o", markersize=3, 
+                 color=colour[l])
         label_no.append(l)
         
         plt.legend(label_no, loc='center left', bbox_to_anchor=(1, 0.5))
