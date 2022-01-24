@@ -1,12 +1,49 @@
-# Import the modules needed
+"""
+This program is designed to produce plots of clustered data, 
+time series data, fit several models ot a curve, 
+produce plots of expected values
+"""
+
+"""
+
+*** MODULES ***
+
+"""
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import sklearn.cluster as cluster
 import scipy.optimize as opt
+import random as rd
+
+"""
+
+*** FUNCTIONS ***
+
+"""
 
 def refineDataframe(df, years, select_years=False):
+    
+    """
+    Refines a given dataframe to the specified years and removes un-required
+    data
+
+    Parameters
+    ----------
+    df : PANDAS_DATAFRAME
+        Dataframe to be modified.
+    years : LIST
+        A list of 2 items, e.g. [lower bound, upper bound].
+    select_years : BOOL
+        whether selecting years col is needed or not
+
+    Returns
+    -------
+    refined_df : PANDAS_DATAFRAME
+        Returns a refined datatframe that is between the 'years' given.
+
+    """
     
     # Getting rid of unncessecary columns and rows
     df = df.reset_index(drop = True)
@@ -35,25 +72,9 @@ def refineDataframe(df, years, select_years=False):
         df = refined_df
     
     return df
-    
+
+
 def selectCountries(df, selected_countries, add = True):
-    """
-    
-
-    Parameters
-    ----------
-    df : TYPE
-        DESCRIPTION.
-    selected_countries : TYPE
-        DESCRIPTION.
-
-
-    Returns
-    -------
-    selective_df : TYPE
-        DESCRIPTION.
-
-    """
 
     """
     Refine the data to select specific countries of intrest
@@ -64,6 +85,8 @@ def selectCountries(df, selected_countries, add = True):
         Dataframe to be modified.
     selected_countries : LIST
         List of countries to be selected.
+    add : BOOL, optional
+        Choose to add or remove countries listed. The default is True.
 
     Returns
     -------
@@ -88,43 +111,27 @@ def selectCountries(df, selected_countries, add = True):
     return selective_df
 
 
-# Next we need to bring in the relevant data
-# Identify file locations
-co2_file = './data/co2_emissions.xls'
-forest_file = './data/forest_area.xls'
-gdp_file = './data/gdp_per_cap.xls'
-electric_file = './data/power_consumption.xls'
-renewable_file = './data/renewable_energy_use.xls'
-renewableout_file = './data/renewable_energy_out.xls'
-urban_pop_file = './data/pop_total.xls'
-
-# Load data into pandas df
-df1 = pd.read_excel(co2_file)
-df2 = pd.read_excel(forest_file)
-df3 = pd.read_excel(gdp_file)
-df4 = pd.read_excel(electric_file)
-df5 = pd.read_excel(renewable_file)
-df6 = pd.read_excel(renewableout_file)
-df7 = pd.read_excel(urban_pop_file)
-
-data = [df1, df2, df3, df4, df5, df6, df7]
-indicator_names = ['CO2', 'Forest Area', 'GDP', 'Electric Consumption', 'Renewable','R_output', 'Pop']
-non_countries = ['AFE', 'AFW', 'ARB', 'CEB', 'CSS', 'EAP', 'EAR', 'EAS', 'ECA', 'ECS', 
-                 'EMU', 'TMN', 'TSA', 'TSS', 'UMC'  'EUU', 'FCS', 'HIC', 'HPC', 'IBD', 
-                 'IBT', 'IDA', 'IDB', 'IDX', 'LAC', 'LCN', 'LDC', 'LIC', 'LMC', 'LMY', 
-                 'LTE', 'MEA', 'MIC', 'MNA', 'NAC', 'OED', 'OSS', 'PRE', 'PSS', 'PST', 
-                 'SAS', 'SSA', 'SSF', 'SST', 'TEA', 'TEC', 'TLA']
-
-years = [1960, 2020]
-refined_data = []
-for df in data:
-    df = selectCountries(df, non_countries, add = False)
-    df = refineDataframe(df, years, select_years = True)
-    refined_data.append(df)
-
-data = refined_data
-
 def snapshotData(data, year, feature_names=[], normalise = True):
+    """
+    Take data from a specific year for all or some indicators
+
+    Parameters
+    ----------
+    data : LIST
+        list containing pandas dataframe(s).
+    year : INT/STRING
+        The year to look at.
+    feature_names : LIST, optional
+        refine for only specific features. The default is [].
+    normalise : BOOL, optional
+        Whether to normalise values or not. The default is True.
+
+    Returns
+    -------
+    PANDAS_DATAFRAME
+        Data from a specific year including the indicators chosen.
+
+    """
     
     if isinstance(data, list) != True:
         print( 'Data must be a list!')
@@ -156,9 +163,23 @@ def snapshotData(data, year, feature_names=[], normalise = True):
     snapshot = snapshot.dropna()
     return snapshot
 
-snap = snapshotData(data, 2010, indicator_names)
 
-def makePlot(df):
+def makePlot(df, indicators):
+    """
+    Creates a scatter graph against each indicator
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe to be plotted.
+    indicators : List
+        list of indicators to plot.
+
+    Returns
+    -------
+    None.
+
+    """
     k = 0
     combinations = []
 
@@ -178,18 +199,34 @@ def makePlot(df):
             else:
                 fig, ax = plt.subplots()
                 ax.scatter(df.iloc[:,i], df.iloc[:,j], color = colour[k])
-                ax.set_xlabel(indicator_names[i])
-                ax.set_ylabel(indicator_names[j])
+                ax.set_xlabel(indicators[i])
+                ax.set_ylabel(indicators[j])
                 ax.set_xlim(-0.1, 1.1)
                 ax.set_ylim(-0.1, 1.1)
                 k += 1
     fig.tight_layout()
-makePlot(snap)
+    return
 
-
-# Clustering
 
 def kMeansCluster(df, chosen_features, expected_clusters):
+    """
+    Applies and plots kMeansCluster
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe to apply clustering.
+    chosen_features : List
+        list of 2 features to plot for clustering.
+    expected_clusters : int
+        integer of expected clustering.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        The dataframe given with extra col of labels.
+
+    """
     
     label_a, label_b = chosen_features
     label_no = []
@@ -235,13 +272,27 @@ def kMeansCluster(df, chosen_features, expected_clusters):
 
     return df
 
-exp_clusters = 4
-features = ['GDP','R_output' ]
-
-kmeansdf = kMeansCluster(snap, features, exp_clusters)
-kmeansdf
 
 def ACCluster(df, chosen_features, expected_clusters):
+    
+    """
+    Applies and plots Agglomerative cluster
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe to apply clustering.
+    chosen_features : List
+        list of 2 features to plot for clustering.
+    expected_clusters : int
+        integer of expected clustering.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        The dataframe given with extra col of labels.
+
+    """
     
     label_no = []
     # Agglomerative clustering
@@ -295,37 +346,24 @@ def ACCluster(df, chosen_features, expected_clusters):
 
     return df
 
-ac_df = ACCluster(snap, features, exp_clusters)
 
-# Using boolean indexing:
-
-df = ac_df
-
-label0 = df[df['labels'] == 0]
-label1 = df[df['labels'] == 1]
-label2 = df[df['labels'] == 2]
-label3 = df[df['labels'] == 3]
-
-label0.sort_values('GDP', ascending=False)
-
-
-label_sorted = [label0, label1, label2, label3]
-
-
-#choosing countries at random
-import random as rd
-rd.seed(1234)
-cc = []
-
-for df in label_sorted:
-    df.reset_index()
-    count = (df.count()[0]+1)
-    index_value = rd.randint(0, count)
-    print(index_value)
-    df = df.iloc[index_value]
-    cc.append(df.name)
-    
 def fitPrep(df, countries):
+    """
+    Preps the data for fitting
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe to be prepped.
+    countries : list
+        countries to apply fitting data to.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        dataframe that can be used for fitting.
+
+    """
     chosen_df = pd.DataFrame()
     
 
@@ -352,15 +390,8 @@ def fitPrep(df, countries):
         
 
     return df
-        
-df = fitPrep(data[5], cc)
 
 
-# In[297]:
-
-
-
-countries = cc
 def plotSTS(df, countries):
     """Function to plot single time seriers"""
 
@@ -374,11 +405,13 @@ def plotSTS(df, countries):
     ax[i].set_xlabel('Year')
         
     fig.suptitle('Renewable Energy Output')
-    return 'Process complete'
+    return
 
-plotSTS(df, cc)
 
-# Fitting functions:
+
+"""
+FITTING FUNCTIONS TO BE MADE INTO CLASS
+"""
 
 def exp_growth(t, scale, growth):
     """ Computes exponential function with scale and growth as free parameters"""
@@ -408,6 +441,91 @@ def periodic_exp_growth(t, A1, G1, A2, period, bias):
     return f
 
 
+"""
+    *** GENERAL CODE ***
+"""
+
+# Identify file locations
+co2_file = './data/co2_emissions.xls'
+forest_file = './data/forest_area.xls'
+gdp_file = './data/gdp_per_cap.xls'
+electric_file = './data/power_consumption.xls'
+renewable_file = './data/renewable_energy_use.xls'
+renewableout_file = './data/renewable_energy_out.xls'
+urban_pop_file = './data/pop_total.xls'
+
+# Load data into pandas df
+df1 = pd.read_excel(co2_file)
+df2 = pd.read_excel(forest_file)
+df3 = pd.read_excel(gdp_file)
+df4 = pd.read_excel(electric_file)
+df5 = pd.read_excel(renewable_file)
+df6 = pd.read_excel(renewableout_file)
+df7 = pd.read_excel(urban_pop_file)
+
+data = [df1, df2, df3, df4, df5, df6, df7]
+indicator_names = ['CO2', 'Forest Area', 'GDP', 'Electric Consumption', 
+                   'Renewable','R_output', 'Pop']
+non_countries = ['AFE', 'AFW', 'ARB', 'CEB', 'CSS', 'EAP', 'EAR', 'EAS', 
+                 'ECA', 'ECS', 'EMU', 'TMN', 'TSA', 'TSS', 'UMC'  'EUU', 
+                 'FCS', 'HIC', 'HPC', 'IBD', 'IBT', 'IDA', 'IDB', 'IDX', 
+                 'LAC', 'LCN', 'LDC', 'LIC', 'LMC', 'LMY', 'LTE', 'MEA', 
+                 'MIC', 'MNA', 'NAC', 'OED', 'OSS', 'PRE', 'PSS', 'PST', 
+                 'SAS', 'SSA', 'SSF', 'SST', 'TEA', 'TEC', 'TLA']
+
+years = [1960, 2020]
+refined_data = []
+for df in data:
+    df = selectCountries(df, non_countries, add = False)
+    df = refineDataframe(df, years, select_years = True)
+    refined_data.append(df)
+
+data = refined_data
+
+# Create a snapshot of data at 2010
+snap = snapshotData(data, 2010, indicator_names)
+
+# Plot possible scatter graphs to see which data to cluster
+makePlot(snap, indicator_names)
+
+# Clustering data using both clustering methods
+exp_clusters = 4
+features = ['GDP','R_output' ]
+
+kmeansdf = kMeansCluster(snap, features, exp_clusters)
+ac_df = ACCluster(snap, features, exp_clusters)
+
+#choosing countries at random
+df = ac_df
+
+# Seperating each label into their own df
+label0 = df[df['labels'] == 0]
+label1 = df[df['labels'] == 1]
+label2 = df[df['labels'] == 2]
+label3 = df[df['labels'] == 3]
+
+label_sorted = [label0, label1, label2, label3]
+
+rd.seed(1234) # seed to be able to replicate results
+cc = [] # array to contain countries
+
+for df in label_sorted:
+    df.reset_index()
+    count = (df.count()[0]+1)
+    index_value = rd.randint(0, count)
+    print(index_value)
+    df = df.iloc[index_value]
+    cc.append(df.name)
+
+print(cc)
+
+# Prep for fitting data
+df = fitPrep(data[5], cc)
+
+# Plotting single time series of selected countries
+plotSTS(df, cc)
+
+# Fitting the data using each respective method
 country = cc[2]
 country_err = (f'{country[:3]} ($\epsilon$)')
 # fit each method
@@ -454,16 +572,11 @@ exb_popt, exb_pcov = opt.curve_fit(periodic_exp_growth, df.index, df[country],
 exb_name = f'{country[:3]} ($e_p$)'
 df[exb_name] = periodic_exp_growth(df.index, * exb_popt)
 
-
-# Now we need to assess the perfromance, for this we use $\chi^2$
-
-
-# Plotting:
-# Inital
+# Plotting fitted curves:
 
 sns.set_palette('hls', 3)
 
-plt.figure(dpi =200)
+plt.figure(dpi = 200)
 plt.title(f'{country}: Curve Fitting')
 plt.plot(df.index, df[country], label = 'Data', alpha = 0.9, color = 'black')
 
@@ -471,24 +584,10 @@ plt.plot(df.index, df[country], label = 'Data', alpha = 0.9, color = 'black')
 exp_label = f'$e$ Fit | $\chi^2_r= ${exp_rchi}'
 plt.plot(df.index, df[exp_name], label = exp_label, linestyle = '-.')
 
-#plt.legend()
-#plt.show()
-
-# Inital
-#plt.figure()
-#plt.title('Logistic fitting')
-#plt.plot(df.index, df[country], label = 'Data')
 # Logistic
 log_label = f'$log$ Fit | $\chi^2_r= ${log_rchi}'
 plt.plot(df.index, df[logistic_name], label = log_label, linestyle = '-.')
 
-#plt.legend()
-#plt.show()
-
-# Inital
-#plt.figure()
-#plt.title('Poly fitting')
-#plt.plot(df.index, df[country], label = 'Data')
 # Poly
 poly_label = f'$poly$ Fit | $\chi^2_r= ${poly_rchi}'
 plt.plot(df.index, df[poly_name], label = poly_label, linestyle = '-.')
@@ -499,10 +598,7 @@ plt.ylabel('Renewable Energy Output %')
 plt.legend()
 plt.show()
 
-
-# # Making future predictions
-# - Predict values for years up to 2025
-
+# Creating predictions using poly, exp and logistic:
 p_year = 2025
 lb_year = df.index.max()
 
@@ -528,10 +624,7 @@ for i in x:
 
 log_values = pd.DataFrame(y, index = x, columns = [country])
 
-
-
-# Inital
-
+# Plotting predicitions
 # Anotating points on the graph:
 mark = [1,5,7,9] 
 
@@ -544,8 +637,8 @@ plt.plot(poly_values.index, exp_values[country], label = '$e$ Prediction',
          linestyle = ':', alpha = 0.5)
 plt.plot(poly_values.index, log_values[country], label = '$log$ Prediction',
          linestyle = '-.', alpha = 0.5)
-plt.plot(poly_values.index, poly_values[country], '-o', label = '$poly$ Prediction',
-         linestyle = '--', markevery = mark)
+plt.plot(poly_values.index, poly_values[country], '-o', 
+         label = '$poly$ Prediction', linestyle = '--', markevery = mark)
 
 
 # Anootating points on the graph:
@@ -556,10 +649,10 @@ for year in annotated_years:
     y_loc = poly_values.loc[year]
     annotation = f'{year}: {np.round(y_loc[0],2)}%'
     
-    plt.annotate(annotation, # this is the text
-                 (year,y_loc), # these are the coordinates to position the label
-                 textcoords = "offset points", # how to position the text
-                 xytext =(0,1), # distance from text to points (x,y)
+    plt.annotate(annotation,
+                 (year,y_loc),
+                 textcoords = "offset points", 
+                 xytext =(0,1), 
                  ha ='right')
 
 plt.grid()
@@ -567,3 +660,7 @@ plt.xlabel('Year')
 plt.ylabel('Renewable Energy Output %')
 plt.legend()
 plt.show()
+
+
+
+
