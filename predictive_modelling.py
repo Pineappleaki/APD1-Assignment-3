@@ -14,8 +14,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import sklearn.cluster as cluster
-import scipy.optimize as opt
 import random as rd
+from modelling import Model
 
 """
 
@@ -264,6 +264,7 @@ def kMeansCluster(df, chosen_features, expected_clusters):
 
     plt.xlabel(label_a)
     plt.ylabel(label_b)
+    plt.grid()
     plt.title(f'k-Means Cluster (of {expected_clusters})')
     plt.show()
     
@@ -408,39 +409,6 @@ def plotSTS(df, countries):
     return
 
 
-
-"""
-FITTING FUNCTIONS TO BE MADE INTO CLASS
-"""
-
-def exp_growth(t, scale, growth):
-    """ Computes exponential function with scale and growth as free parameters"""
-    f = scale * np.exp(growth * (t-1990))
-    
-    return f
-
-def logistics(t, a, k, t0):
-    """ Computes logistics function with scale and incr as free parameters"""
-    f = a / (1.0 + np.exp(-k * (t - t0)))
-    
-    return f
-
-def poly_fit(t, a7, a6, a5, a4, a3, a2, a1, a0):
-    
-    poly = [a7, a6, a5, a4, a4, a3, a2, a1, a0]
-    x = t - 1990
-
-    f = poly[0]
-    for p in poly[1:]:
-        f = f * x + p
-    return f
-
-def periodic_exp_growth(t, A1, G1, A2, period, bias):
-    x = t - 1990
-    f = A1 * np.exp(G1 * x) + A2 * x * np.sin(period * x) + bias
-    return f
-
-
 """
     *** GENERAL CODE ***
 """
@@ -531,10 +499,11 @@ country_err = (f'{country[:3]} ($\epsilon$)')
 # fit each method
 
 # Exponential
-exp_popt, exp_pcov = opt.curve_fit(exp_growth, df.index, df[country], 
-                                  sigma=df[country_err], absolute_sigma=True)
+expModel = Model(df.index, df[country])
+expModel.applyModel(expModel.ExponentialModel)
+
 exp_name = f'{country[:3]} ($e$)'
-df[exp_name] = exp_growth(df.index, * exp_popt)
+df[exp_name] = expModel.getTheoriticalValues()
 # Calculate Chi^2
 exp_chi = '$e \chi^2$'
 df[exp_chi] = ((df[country] - df[exp_name]) / df[country_err])
@@ -543,10 +512,13 @@ exp_rchi = np.round(exp_rchi, 3)
 
 
 # Logistic
-log_popt, log_pcov = opt.curve_fit(logistics, df.index, df[country], 
-                            p0=(1e9, 0.5, 2000.0))
+p0=(1e9, 0.5, 2000.0)
+
+logModel = Model(df.index, df[country])
+logModel.applyModel(logModel.LogisticModel, p0)
+
 logistic_name = f'{country[:3]} ($log$)'
-df[logistic_name] = logistics(df.index, * log_popt)
+df[logistic_name] = logModel.getTheoriticalValues()
 # Calculate Chi^2
 log_chi = '$log \chi^2$'
 df[log_chi] = ((df[country] - df[logistic_name]) / df[country_err])
@@ -555,10 +527,11 @@ log_rchi = np.round(log_rchi, 3)
 
 
 # Poly
-pol_popt, pol_pcov = opt.curve_fit(poly_fit, df.index, df[country], 
-                                  sigma=df[country_err], absolute_sigma=True)
+polyModel = Model(df.index, df[country])
+polyModel.applyModel(polyModel.PolynomialModel)
+
 poly_name = f'{country[:3]} ($poly$)'
-df[poly_name] = poly_fit(df.index, * pol_popt)
+df[poly_name] = polyModel.getTheoriticalValues()
 # Calculate Chi^2
 poly_chi = '$poly \chi^2$'
 df[poly_chi] = ((df[country] - df[poly_name]) / df[country_err])
@@ -566,14 +539,7 @@ poly_rchi = df[poly_chi].mean()
 poly_rchi = np.round(poly_rchi, 3)
 
 
-# Exp + Sin
-exb_popt, exb_pcov = opt.curve_fit(periodic_exp_growth, df.index, df[country], 
-                                  sigma=df[country_err], absolute_sigma=True)
-exb_name = f'{country[:3]} ($e_p$)'
-df[exb_name] = periodic_exp_growth(df.index, * exb_popt)
-
 # Plotting fitted curves:
-
 sns.set_palette('hls', 3)
 
 plt.figure(dpi = 200)
@@ -599,36 +565,28 @@ plt.legend()
 plt.show()
 
 # Creating predictions using poly, exp and logistic:
-p_year = 2025
+p_year = 2030
 lb_year = df.index.max()
 
 diff = p_year - lb_year
 
 x = np.linspace(lb_year,p_year, diff).astype(int)
 
-y = []
-for i in x:
-    y.append(poly_fit(i, * pol_popt))
 
+y = polyModel.getPredictions(x)
 poly_values = pd.DataFrame(y, index = x, columns = [country])
 
-y = []
-for i in x:
-    y.append(exp_growth(i, * exp_popt))
+e = expModel.getPredictions(x)
+exp_values = pd.DataFrame(e, index = x, columns = [country])
 
-exp_values = pd.DataFrame(y, index = x, columns = [country])
-
-y = []
-for i in x:
-    y.append(logistics(i, * log_popt))
-
-log_values = pd.DataFrame(y, index = x, columns = [country])
+l = logModel.getPredictions(x)
+log_values = pd.DataFrame(l, index = x, columns = [country])
 
 # Plotting predicitions
 # Anotating points on the graph:
-mark = [1,5,7,9] 
+mark = [1,5,7,9,14] 
 
-sns.set_palette('hls',3)
+sns.set_palette('hls', 3)
 
 plt.figure(dpi = 200)
 plt.title('Estimated Predictions')
@@ -642,7 +600,7 @@ plt.plot(poly_values.index, poly_values[country], '-o',
 
 
 # Anootating points on the graph:
-annotated_years = [2016, 2020, 2022, 2025]
+annotated_years = [2016, 2020, 2022, 2025, 2030]
 #plt.set_markers(mark)
 
 for year in annotated_years:
@@ -654,6 +612,9 @@ for year in annotated_years:
                  textcoords = "offset points", 
                  xytext =(0,1), 
                  ha ='right')
+y_limit = poly_values[country].max() + 10
+
+plt.ylim(top = y_limit)
 
 plt.grid()
 plt.xlabel('Year')
