@@ -325,4 +325,245 @@ for df in label_sorted:
     df = df.iloc[index_value]
     cc.append(df.name)
     
-cc
+def fitPrep(df, countries):
+    chosen_df = pd.DataFrame()
+    
+
+    df = df.transpose()
+    for i in countries:
+        if i in df.index:
+            chosen_df[i] = df.loc[i]
+    df = chosen_df
+    df = df.dropna()
+    
+    #getting years
+    years = []
+    for year in df.index:
+        years.append(int(str(year)[:4]))
+        
+    df.index = years
+    df.index.names = ['Year']
+    
+    # Creating errors:
+    for country in countries:
+        col_name = f'{country[:3]} ($\epsilon$)'
+        error_val = np.sqrt(df[country])
+        df[col_name] = error_val
+        
+
+    return df
+        
+df = fitPrep(data[5], cc)
+
+
+# In[297]:
+
+
+
+countries = cc
+def plotSTS(df, countries):
+    """Function to plot single time seriers"""
+
+    fig, ax = plt.subplots(len(countries), sharex = True, dpi = 200)
+    colour = sns.color_palette("hls", len(countries))
+
+    for i in range(len(countries)):
+        country = countries[i]
+        ax[i].plot(df.index, df[country], color = colour[i])
+        ax[i].set_ylabel(country)
+    ax[i].set_xlabel('Year')
+        
+    fig.suptitle('Renewable Energy Output')
+    return 'Process complete'
+
+plotSTS(df, cc)
+
+# Fitting functions:
+
+def exp_growth(t, scale, growth):
+    """ Computes exponential function with scale and growth as free parameters"""
+    f = scale * np.exp(growth * (t-1990))
+    
+    return f
+
+def logistics(t, a, k, t0):
+    """ Computes logistics function with scale and incr as free parameters"""
+    f = a / (1.0 + np.exp(-k * (t - t0)))
+    
+    return f
+
+def poly_fit(t, a7, a6, a5, a4, a3, a2, a1, a0):
+    
+    poly = [a7, a6, a5, a4, a4, a3, a2, a1, a0]
+    x = t - 1990
+
+    f = poly[0]
+    for p in poly[1:]:
+        f = f * x + p
+    return f
+
+def periodic_exp_growth(t, A1, G1, A2, period, bias):
+    x = t - 1990
+    f = A1 * np.exp(G1 * x) + A2 * x * np.sin(period * x) + bias
+    return f
+
+
+country = cc[2]
+country_err = (f'{country[:3]} ($\epsilon$)')
+# fit each method
+
+# Exponential
+exp_popt, exp_pcov = opt.curve_fit(exp_growth, df.index, df[country], 
+                                  sigma=df[country_err], absolute_sigma=True)
+exp_name = f'{country[:3]} ($e$)'
+df[exp_name] = exp_growth(df.index, * exp_popt)
+# Calculate Chi^2
+exp_chi = '$e \chi^2$'
+df[exp_chi] = ((df[country] - df[exp_name]) / df[country_err])
+exp_rchi = df[exp_chi].mean()
+exp_rchi = np.round(exp_rchi, 3)
+
+
+# Logistic
+log_popt, log_pcov = opt.curve_fit(logistics, df.index, df[country], 
+                            p0=(1e9, 0.5, 2000.0))
+logistic_name = f'{country[:3]} ($log$)'
+df[logistic_name] = logistics(df.index, * log_popt)
+# Calculate Chi^2
+log_chi = '$log \chi^2$'
+df[log_chi] = ((df[country] - df[logistic_name]) / df[country_err])
+log_rchi = df[log_chi].mean()
+log_rchi = np.round(log_rchi, 3)
+
+
+# Poly
+pol_popt, pol_pcov = opt.curve_fit(poly_fit, df.index, df[country], 
+                                  sigma=df[country_err], absolute_sigma=True)
+poly_name = f'{country[:3]} ($poly$)'
+df[poly_name] = poly_fit(df.index, * pol_popt)
+# Calculate Chi^2
+poly_chi = '$poly \chi^2$'
+df[poly_chi] = ((df[country] - df[poly_name]) / df[country_err])
+poly_rchi = df[poly_chi].mean()
+poly_rchi = np.round(poly_rchi, 3)
+
+
+# Exp + Sin
+exb_popt, exb_pcov = opt.curve_fit(periodic_exp_growth, df.index, df[country], 
+                                  sigma=df[country_err], absolute_sigma=True)
+exb_name = f'{country[:3]} ($e_p$)'
+df[exb_name] = periodic_exp_growth(df.index, * exb_popt)
+
+
+# Now we need to assess the perfromance, for this we use $\chi^2$
+
+
+# Plotting:
+# Inital
+
+sns.set_palette('hls', 3)
+
+plt.figure(dpi =200)
+plt.title(f'{country}: Curve Fitting')
+plt.plot(df.index, df[country], label = 'Data', alpha = 0.9, color = 'black')
+
+# Exponential
+exp_label = f'$e$ Fit | $\chi^2_r= ${exp_rchi}'
+plt.plot(df.index, df[exp_name], label = exp_label, linestyle = '-.')
+
+#plt.legend()
+#plt.show()
+
+# Inital
+#plt.figure()
+#plt.title('Logistic fitting')
+#plt.plot(df.index, df[country], label = 'Data')
+# Logistic
+log_label = f'$log$ Fit | $\chi^2_r= ${log_rchi}'
+plt.plot(df.index, df[logistic_name], label = log_label, linestyle = '-.')
+
+#plt.legend()
+#plt.show()
+
+# Inital
+#plt.figure()
+#plt.title('Poly fitting')
+#plt.plot(df.index, df[country], label = 'Data')
+# Poly
+poly_label = f'$poly$ Fit | $\chi^2_r= ${poly_rchi}'
+plt.plot(df.index, df[poly_name], label = poly_label, linestyle = '-.')
+
+plt.grid()
+plt.xlabel('Year')
+plt.ylabel('Renewable Energy Output %')
+plt.legend()
+plt.show()
+
+
+# # Making future predictions
+# - Predict values for years up to 2025
+
+p_year = 2025
+lb_year = df.index.max()
+
+diff = p_year - lb_year
+
+x = np.linspace(lb_year,p_year, diff).astype(int)
+
+y = []
+for i in x:
+    y.append(poly_fit(i, * pol_popt))
+
+poly_values = pd.DataFrame(y, index = x, columns = [country])
+
+y = []
+for i in x:
+    y.append(exp_growth(i, * exp_popt))
+
+exp_values = pd.DataFrame(y, index = x, columns = [country])
+
+y = []
+for i in x:
+    y.append(logistics(i, * log_popt))
+
+log_values = pd.DataFrame(y, index = x, columns = [country])
+
+
+
+# Inital
+
+# Anotating points on the graph:
+mark = [1,5,7,9] 
+
+sns.set_palette('hls',3)
+
+plt.figure(dpi = 200)
+plt.title('Estimated Predictions')
+plt.plot(df.index, df[country], label = 'Data', color = 'black')
+plt.plot(poly_values.index, exp_values[country], label = '$e$ Prediction',
+         linestyle = ':', alpha = 0.5)
+plt.plot(poly_values.index, log_values[country], label = '$log$ Prediction',
+         linestyle = '-.', alpha = 0.5)
+plt.plot(poly_values.index, poly_values[country], '-o', label = '$poly$ Prediction',
+         linestyle = '--', markevery = mark)
+
+
+# Anootating points on the graph:
+annotated_years = [2016, 2020, 2022, 2025]
+#plt.set_markers(mark)
+
+for year in annotated_years:
+    y_loc = poly_values.loc[year]
+    annotation = f'{year}: {np.round(y_loc[0],2)}%'
+    
+    plt.annotate(annotation, # this is the text
+                 (year,y_loc), # these are the coordinates to position the label
+                 textcoords = "offset points", # how to position the text
+                 xytext =(0,1), # distance from text to points (x,y)
+                 ha ='right')
+
+plt.grid()
+plt.xlabel('Year')
+plt.ylabel('Renewable Energy Output %')
+plt.legend()
+plt.show()
